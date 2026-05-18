@@ -3,3 +3,4 @@ stitch_securezip_minimal_web_app/
 stitch_securezip_minimal_web_app.zip
 securezip.html
 .DS_Store
+.kamal/secrets
