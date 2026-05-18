@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>작업기억검사</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Noto Sans KR',sans-serif;background:#1a1a2e;color:#eee;display:flex;justify-content:center;align-items:center;min-height:100vh;overflow:hidden}
+.container{text-align:center;max-width:500px;width:100%;padding:20px}
+h1{font-size:1.8rem;font-weight:900;margin-bottom:8px;letter-spacing:-1px}
+.subtitle{font-size:0.9rem;color:#aaa;margin-bottom:24px}
+.grid-wrap{display:inline-block;background:#f0efe8;border-radius:4px;padding:0;box-shadow:0 8px 32px rgba(0,0,0,.4);border:2px solid #333;overflow:hidden}
+.grid{display:grid;grid-template-columns:repeat(8,1fr);gap:0}
+.cell{width:40px;height:40px;background:#e8e7e0;border:1px solid #333;transition:background .15s}
+.cell.filled{background:#1a1a2e}
+.cell.hint{background:rgba(26,26,46,.35)}
+.info{margin-top:20px;font-size:1rem;min-height:48px;line-height:1.5;color:#ccc}
+.info strong{color:#fff}
+.buttons{margin-top:20px;display:flex;gap:16px;justify-content:center}
+.btn{border:none;padding:14px 40px;border-radius:10px;font-size:1.1rem;font-weight:700;font-family:inherit;cursor:pointer;transition:transform .1s,box-shadow .1s}
+.btn:active{transform:scale(.95)}
+.btn-yes{background:#facc15;color:#1a1a2e}
+.btn-no{background:#3b82f6;color:#fff}
+.btn-start{background:#facc15;color:#1a1a2e;padding:16px 48px;font-size:1.2rem}
+.btn:hover{box-shadow:0 4px 16px rgba(255,255,255,.15)}
+.score-bar{display:flex;justify-content:center;gap:32px;margin-bottom:20px;font-size:.95rem;color:#aaa}
+.score-bar span strong{color:#facc15;font-size:1.1rem}
+.phase-label{display:inline-block;background:rgba(255,255,255,.08);padding:4px 14px;border-radius:20px;font-size:.85rem;margin-bottom:12px;color:#facc15;font-weight:700}
+.result-box{background:rgba(255,255,255,.06);border-radius:16px;padding:32px;margin-top:16px}
+.result-box h2{font-size:1.5rem;margin-bottom:12px}
+.result-box .big{font-size:3rem;font-weight:900;color:#facc15}
+.feedback{margin-top:12px;padding:8px 16px;border-radius:8px;font-weight:700;font-size:1rem;animation:pop .3s ease}
+.feedback.correct{background:rgba(34,197,94,.2);color:#4ade80}
+.feedback.wrong{background:rgba(239,68,68,.2);color:#f87171}
+@keyframes pop{0%{transform:scale(.8);opacity:0}100%{transform:scale(1);opacity:1}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.fade-in{animation:fadeIn .4s ease}
+.hidden{display:none}
+.level-info{font-size:.85rem;color:#888;margin-top:4px}
+</style>
+</head>
+<body>
+<div class="container" id="app">
+  <!-- intro -->
+  <div id="intro">
+    <h1>작업기억검사</h1>
+    <p class="subtitle">정보의 기억 및 유지 능력을 측정합니다</p>
+    <div class="grid-wrap" style="margin-bottom:20px">
+      <div class="grid" id="demo-grid"></div>
+    </div>
+    <div class="info" style="text-align:left;max-width:380px;margin:0 auto 20px">
+      <p><strong>검사 방법</strong></p>
+      <p style="margin-top:8px">1. 첫번째 자극에서 색칠된 칸의 위치를 기억합니다.</p>
+      <p>2. 두번째 자극의 색칠된 칸이 첫번째에 모두 포함되면 <strong style="color:#facc15">예</strong>, 아니면 <strong style="color:#3b82f6">아니오</strong>를 누릅니다.</p>
+      <p>3. 자극은 짧게 제시되므로 빠르게 기억하세요!</p>
+    </div>
+    <button class="btn btn-start" onclick="startGame()">검사 시작</button>
+  </div>
+
+  <!-- game -->
+  <div id="game" class="hidden">
+    <div class="score-bar">
+      <span>라운드 <strong id="round">1</strong>/20</span>
+      <span>정답 <strong id="score">0</strong></span>
+      <span>난이도 <strong id="level">1</strong></span>
+    </div>
+    <div id="phase-label" class="phase-label">첫번째 자극</div>
+    <div class="grid-wrap">
+      <div class="grid" id="game-grid"></div>
+    </div>
+    <div class="info" id="msg">첫번째 자극의 위치를 기억하세요.</div>
+    <div id="feedback-area"></div>
+    <div class="buttons hidden" id="btn-area">
+      <button class="btn btn-yes" onclick="answer(true)">예</button>
+      <button class="btn btn-no" onclick="answer(false)">아니오</button>
+    </div>
+    <button class="btn" style="margin-top:16px;background:#ef4444;color:#fff;padding:10px 28px;font-size:.9rem" onclick="quitGame()">종료</button>
+  </div>
+
+  <!-- result -->
+  <div id="result" class="hidden">
+    <h1>검사 완료</h1>
+    <div class="result-box fade-in">
+      <p style="color:#aaa">정답률</p>
+      <div class="big" id="final-score">0%</div>
+      <p style="margin-top:8px;color:#aaa" id="final-detail"></p>
+    </div>
+    <button class="btn btn-start" style="margin-top:24px" onclick="location.reload()">다시 하기</button>
+  </div>
+</div>
+
+<script>
+const GRID=8, TOTAL_ROUNDS=20;
+let state={round:0,score:0,first:[],second:[],correctAnswer:null,level:1,filledCount:3};
+
+function makeGrid(id,count){
+  const el=document.getElementById(id);
+  el.innerHTML='';
+  for(let i=0;i<count;i++){const c=document.createElement('div');c.className='cell';c.dataset.idx=i;el.appendChild(c)}
+}
+
+function init(){
+  makeGrid('demo-grid',GRID*GRID);
+  // show demo pattern
+  [10,11,18,19,26,27].forEach(i=>document.getElementById('demo-grid').children[i].classList.add('filled'));
+}
+
+function startGame(){
+  document.getElementById('intro').classList.add('hidden');
+  document.getElementById('game').classList.remove('hidden');
+  makeGrid('game-grid',GRID*GRID);
+  state={round:0,score:0,first:[],second:[],correctAnswer:null,level:1,filledCount:3};
+  nextRound();
+}
+
+function getFilledCount(){
+  // increase difficulty every 5 rounds
+  if(state.round<=5) return 4;
+  if(state.round<=10) return 6;
+  if(state.round<=15) return 8;
+  return 10;
+}
+
+function randomConnected(n){
+  // Generate n connected cells using random walk
+  const start=Math.floor(Math.random()*GRID*GRID);
+  const set=new Set([start]);
+  while(set.size<n){
+    // pick a random cell from current set and expand
+    const arr=[...set];
+    const from=arr[Math.floor(Math.random()*arr.length)];
+    const r=Math.floor(from/GRID), c=from%GRID;
+    const neighbors=[];
+    if(r>0) neighbors.push(from-GRID);
+    if(r<GRID-1) neighbors.push(from+GRID);
+    if(c>0) neighbors.push(from-1);
+    if(c<GRID-1) neighbors.push(from+1);
+    const valid=neighbors.filter(x=>!set.has(x));
+    if(valid.length>0) set.add(valid[Math.floor(Math.random()*valid.length)]);
+  }
+  return [...set];
+}
+
+function showCells(cells){
+  const g=document.getElementById('game-grid');
+  for(let c of g.children) c.classList.remove('filled','hint');
+  cells.forEach(i=>g.children[i].classList.add('filled'));
+}
+
+function clearGrid(){
+  const g=document.getElementById('game-grid');
+  for(let c of g.children) c.classList.remove('filled','hint');
+}
+
+function nextRound(){
+  state.round++;
+  if(state.round>TOTAL_ROUNDS){showResult();return}
+  
+  const fc=getFilledCount();
+  state.level=Math.ceil(state.round/5);
+  document.getElementById('round').textContent=state.round;
+  document.getElementById('score').textContent=state.score;
+  document.getElementById('level').textContent=state.level;
+  document.getElementById('btn-area').classList.add('hidden');
+  document.getElementById('feedback-area').innerHTML='';
+
+  // generate first stimulus
+  state.first=randomConnected(fc);
+  
+  // generate second stimulus: 50% chance it's a subset (answer=yes)
+  const isYes=Math.random()<0.5;
+  if(isYes){
+    // pick a connected subset of first
+    // start from random cell in first, BFS to pick subset
+    const subSize=Math.max(2,fc-Math.floor(Math.random()*3));
+    const firstSet=new Set(state.first);
+    const startIdx=Math.floor(Math.random()*state.first.length);
+    const sub=new Set([state.first[startIdx]]);
+    while(sub.size<subSize){
+      const arr=[...sub];
+      const from=arr[Math.floor(Math.random()*arr.length)];
+      const r=Math.floor(from/GRID),c=from%GRID;
+      const nb=[];
+      if(r>0) nb.push(from-GRID);
+      if(r<GRID-1) nb.push(from+GRID);
+      if(c>0) nb.push(from-1);
+      if(c<GRID-1) nb.push(from+1);
+      const valid=nb.filter(x=>firstSet.has(x)&&!sub.has(x));
+      if(valid.length===0) break;
+      sub.add(valid[Math.floor(Math.random()*valid.length)]);
+    }
+    state.second=[...sub];
+    state.correctAnswer=true;
+  } else {
+    // connected shape that overlaps first AND has at least one cell outside first
+    const firstSet=new Set(state.first);
+    const targetSize=Math.max(2,fc-Math.floor(Math.random()*2));
+    let best=null;
+    for(let attempt=0;attempt<80;attempt++){
+      // start from a random cell IN first (guarantees overlap)
+      const startCell=state.first[Math.floor(Math.random()*state.first.length)];
+      const shape=new Set([startCell]);
+      while(shape.size<targetSize){
+        const arr=[...shape];
+        const from=arr[Math.floor(Math.random()*arr.length)];
+        const r=Math.floor(from/GRID),c=from%GRID;
+        const nb=[];
+        if(r>0) nb.push(from-GRID);
+        if(r<GRID-1) nb.push(from+GRID);
+        if(c>0) nb.push(from-1);
+        if(c<GRID-1) nb.push(from+1);
+        const valid=nb.filter(x=>!shape.has(x));
+        if(valid.length===0) break;
+        shape.add(valid[Math.floor(Math.random()*valid.length)]);
+      }
+      const arr=[...shape];
+      const hasOverlap=arr.some(c=>firstSet.has(c));
+      const hasOutside=arr.some(c=>!firstSet.has(c));
+      if(hasOverlap && hasOutside){best=arr;break;}
+    }
+    state.second=best||[...state.first.slice(0,-1), state.first[0]>0?state.first[0]-1:state.first[0]+1];
+    state.correctAnswer=false;
+  }
+
+  // show sequence
+  const showTime=Math.max(800,1600-state.level*200);
+  
+  document.getElementById('phase-label').textContent='첫번째 자극';
+  document.getElementById('msg').textContent='색칠된 칸의 위치를 기억하세요!';
+  
+  // show fixation cross briefly
+  clearGrid();
+  setTimeout(()=>{
+    showCells(state.first);
+    setTimeout(()=>{
+      clearGrid();
+      document.getElementById('msg').textContent='잠시 기다려주세요...';
+      setTimeout(()=>{
+        document.getElementById('phase-label').textContent='두번째 자극';
+        showCells(state.second);
+        setTimeout(()=>{
+          clearGrid();
+          // show hint overlay
+          state.second.forEach(i=>document.getElementById('game-grid').children[i].classList.add('hint'));
+          document.getElementById('msg').innerHTML='두번째 자극이 첫번째에 <strong>모두 포함</strong>되나요?';
+          document.getElementById('btn-area').classList.remove('hidden');
+        },showTime);
+      },500);
+    },showTime);
+  },400);
+}
+
+function answer(yes){
+  document.getElementById('btn-area').classList.add('hidden');
+  const correct=yes===state.correctAnswer;
+  if(correct) state.score++;
+  document.getElementById('score').textContent=state.score;
+  
+  const fb=document.getElementById('feedback-area');
+  fb.innerHTML=`<div class="feedback ${correct?'correct':'wrong'}">${correct?'정답!':'오답!'} 정답은 "${state.correctAnswer?'예':'아니오'}"</div>`;
+  
+  clearGrid();
+  setTimeout(nextRound,1200);
+}
+
+function quitGame(){
+  state.round=TOTAL_ROUNDS+1;
+  showResult();
+}
+
+function showResult(){
+  document.getElementById('game').classList.add('hidden');
+  document.getElementById('result').classList.remove('hidden');
+  const played=Math.min(state.round-1,TOTAL_ROUNDS);
+  const pct=played>0?Math.round(state.score/played*100):0;
+  document.getElementById('final-score').textContent=pct+'%';
+  document.getElementById('final-detail').textContent=`${played}문제 중 ${state.score}문제 정답`;
+}
+
+init();
+</script>
+</body>
+</html>

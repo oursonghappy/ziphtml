@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<!-- SecureZip 메인 페이지 — Obsidian Prism 디자인 시스템 적용 -->
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0a0a">
+<title>SecureZip — 브라우저 암호 압축</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@zip.js/zip.js@2.7.52/dist/zip.min.js"></script>
+<style>
+/* ── 리셋 & 변수 ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:           #0a0a0a;
+  --surface:      #131313;
+  --surface-low:  #1c1b1b;
+  --surface-mid:  #201f1f;
+  --surface-high: #2a2a2a;
+  --border:       rgba(255,255,255,0.08);
+  --border-light: rgba(255,255,255,0.14);
+  --on-surface:   #e5e2e1;
+  --on-muted:     #9992a4;
+  --primary:      #6366f1;
+  --primary-end:  #8b5cf6;
+  --accent:       #E4F222;
+  --error:        #ff6b6b;
+  --grad: linear-gradient(135deg, #6366f1, #8b5cf6);
+}
+
+body {
+  font-family: 'Inter', -apple-system, sans-serif;
+  background-color: var(--bg);
+  color: var(--on-surface);
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
+  position: relative;
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 노이즈 텍스처 오버레이 */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* 배경 글로우 */
+body::after {
+  content: '';
+  position: fixed;
+  top: -200px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(ellipse, rgba(99,102,241,0.12) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── 헤더 ── */
+header {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.logo-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.logo-icon {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+.logo-text {
+  font-size: 22px;
+  font-weight: 700;
+  background: var(--grad);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.02em;
+}
+
+.tagline {
+  font-size: 13px;
+  color: var(--on-muted);
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.04em;
+}
+
+/* ── 카드 ── */
+.card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 480px;
+  background: rgba(19,19,19,0.75);
+  border: 1px solid var(--border-light);
+  border-radius: 16px;
+  padding: 28px;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+/* ── 드롭존 ── */
+.drop-zone {
+  border: 1.5px dashed rgba(99,102,241,0.3);
+  border-radius: 12px;
+  padding: 36px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 16px;
+  background: rgba(99,102,241,0.03);
+}
+
+.drop-zone:hover, .drop-zone.drag-over {
+  border-color: var(--primary);
+  background: rgba(99,102,241,0.08);
+  box-shadow: 0 0 20px rgba(99,102,241,0.15);
+}
+
+.drop-icon {
+  font-size: 32px;
+  margin-bottom: 10px;
+  display: block;
+}
+
+.drop-main {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--on-surface);
+  margin-bottom: 4px;
+}
+
+.drop-sub {
+  font-size: 11px;
+  color: var(--on-muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+#fileInput { display: none; }
+
+/* ── 파일 목록 ── */
+.file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+  max-height: 150px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--surface-high) transparent;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--surface-mid);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.file-item .fname {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--on-surface);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.file-item .fsize {
+  color: var(--on-muted);
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  flex-shrink: 0;
+}
+
+.file-item .del {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--on-muted);
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.file-item .del:hover {
+  color: var(--error);
+  background: rgba(255,107,107,0.1);
+}
+
+.file-item .drag-handle {
+  color: var(--on-muted);
+  font-size: 14px;
+  cursor: grab;
+  padding: 2px 4px;
+  flex-shrink: 0;
+  line-height: 1;
+  user-select: none;
+}
+
+.file-item.dragging {
+  opacity: 0.35;
+}
+
+.file-item.drag-over-item {
+  border-color: var(--primary);
+  background: rgba(99,102,241,0.1);
+}
+
+/* ── 입력 필드 ── */
+.field {
+  margin-bottom: 14px;
+}
+
+.field label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--on-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  display: block;
+  margin-bottom: 6px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.field input {
+  width: 100%;
+  height: 42px;
+  background: var(--surface-low);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0 14px;
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  color: var(--on-surface);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.field input::placeholder { color: var(--on-muted); }
+
+.field input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.2);
+}
+
+.pw-wrap { position: relative; }
+
+.pw-wrap input { padding-right: 44px; }
+
+.pw-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--on-muted);
+  font-size: 16px;
+  line-height: 1;
+  transition: color 0.15s;
+}
+
+.pw-toggle:hover { color: var(--on-surface); }
+
+/* ── 강도 바 ── */
+.strength-bars {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.bar {
+  height: 3px;
+  flex: 1;
+  border-radius: 2px;
+  background: var(--surface-high);
+  transition: background 0.3s;
+}
+
+.strength-label {
+  font-size: 11px;
+  color: var(--on-muted);
+  margin-top: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  min-height: 16px;
+}
+
+/* ── 진행 바 ── */
+.progress-wrap {
+  margin: 16px 0;
+}
+
+.progress-bg {
+  height: 4px;
+  background: var(--surface-high);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--grad);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+  width: 0%;
+  box-shadow: 0 0 8px rgba(99,102,241,0.5);
+}
+
+.progress-text {
+  font-size: 11px;
+  color: var(--on-muted);
+  margin-top: 6px;
+  text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── 버튼 ── */
+.btn {
+  width: 100%;
+  height: 46px;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-primary {
+  background: var(--grad);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(99,102,241,0.35);
+}
+
+.btn-primary::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 200%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+  animation: shimmer 2.5s ease infinite;
+}
+
+@keyframes shimmer {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+.btn-primary:hover:not(:disabled) {
+  box-shadow: 0 6px 24px rgba(99,102,241,0.5);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(99,102,241,0.3);
+}
+
+.btn-primary:disabled {
+  background: linear-gradient(135deg, #3a3a4a, #4a3a5a);
+  color: rgba(255,255,255,0.3);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.btn-primary:disabled::before { display: none; }
+
+.btn-secondary {
+  background: transparent;
+  border: 1px solid var(--border-light);
+  color: var(--on-surface);
+  margin-top: 10px;
+}
+
+.btn-secondary:hover {
+  background: var(--surface-high);
+  border-color: rgba(255,255,255,0.2);
+}
+
+/* ── 성공 뷰 ── */
+.success-view {
+  text-align: center;
+  padding: 12px 0;
+}
+
+.success-icon {
+  width: 64px;
+  height: 64px;
+  background: rgba(228,242,34,0.1);
+  border: 1px solid rgba(228,242,34,0.3);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  margin: 0 auto 16px;
+  animation: pop 0.4s cubic-bezier(0.34,1.56,0.64,1);
+}
+
+@keyframes pop {
+  from { transform: scale(0.5); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+.success-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 6px;
+  letter-spacing: -0.01em;
+}
+
+.success-meta {
+  font-size: 12px;
+  color: var(--on-muted);
+  font-family: 'JetBrains Mono', monospace;
+  margin-bottom: 24px;
+  line-height: 1.6;
+}
+
+.encrypted-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(99,102,241,0.15);
+  border: 1px solid rgba(99,102,241,0.3);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--primary);
+  margin-top: 8px;
+  animation: pulse 2s ease infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.6; }
+}
+
+/* ── 탭 ── */
+.tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--surface-low);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 4px;
+  margin-bottom: 20px;
+}
+
+.tab-btn {
+  flex: 1;
+  height: 34px;
+  border: none;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: transparent;
+  color: var(--on-muted);
+}
+
+.tab-btn.active {
+  background: var(--grad);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(99,102,241,0.35);
+}
+
+.tab-btn:not(.active):hover {
+  color: var(--on-surface);
+  background: var(--surface-high);
+}
+
+/* ── 유틸 ── */
+.hidden { display: none !important; }
+
+/* ── 푸터 ── */
+footer {
+  position: relative;
+  z-index: 1;
+  margin-top: 20px;
+  font-size: 11px;
+  color: rgba(153,146,164,0.5);
+  font-family: 'JetBrains Mono', monospace;
+  text-align: center;
+}
+
+/* ── 터치 디바이스 공통 ── */
+@media (hover: none) {
+  /* 호버 효과 제거 — 모바일에서 stuck hover 방지 */
+  .btn-primary:hover:not(:disabled) { box-shadow: 0 4px 16px rgba(99,102,241,0.35); transform: none; }
+  .btn-secondary:hover { background: transparent; border-color: var(--border-light); }
+  .drop-zone:hover { border-color: rgba(99,102,241,0.3); background: rgba(99,102,241,0.03); box-shadow: none; }
+
+  /* 탭 피드백 */
+  .btn:active { transform: scale(0.97); opacity: 0.9; }
+  .drop-zone:active { border-color: var(--primary); background: rgba(99,102,241,0.08); }
+}
+
+/* ── 모바일 (480px 이하) ── */
+@media (max-width: 480px) {
+  body { justify-content: flex-start; padding-top: max(32px, env(safe-area-inset-top)); }
+
+  header { margin-bottom: 20px; }
+  .logo-text { font-size: 20px; }
+  .tagline { font-size: 11px; }
+
+  .card {
+    padding: 20px 16px;
+    border-radius: 16px;
+    /* 카드를 좌우 꽉 채우되 여백 확보 */
+    width: calc(100% - 0px);
+  }
+
+  /* iOS 줌인 방지: 입력 필드 font-size 16px */
+  .field input { font-size: 16px; height: 48px; }
+
+  /* 드롭존 → 탭 영역 강조 */
+  .drop-zone { padding: 32px 16px; }
+  .drop-icon { font-size: 36px; }
+  .drop-main { font-size: 15px; }
+
+  /* 파일 목록 스크롤 여유 */
+  .file-list { max-height: 180px; }
+  .file-item { padding: 10px 12px; }
+  .file-item .del { padding: 6px 8px; font-size: 16px; } /* 탭 영역 확대 */
+
+  /* 버튼 높이 확대 */
+  .btn { height: 52px; font-size: 15px; border-radius: 12px; }
+
+  /* 강도 바 여유 */
+  .bar { height: 4px; }
+
+  /* 성공 뷰 */
+  .success-icon { width: 72px; height: 72px; font-size: 32px; }
+  .success-title { font-size: 22px; }
+  .success-meta { font-size: 13px; }
+}
+
+/* ── 매우 작은 화면 (360px 이하) ── */
+@media (max-width: 360px) {
+  .card { padding: 16px 12px; }
+  .drop-zone { padding: 24px 12px; }
+  .logo-text { font-size: 18px; }
+  .tagline { display: none; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-wrap">
+    <svg class="logo-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+         stroke="url(#lg)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <defs>
+        <linearGradient id="lg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#6366f1"/>
+          <stop offset="100%" style="stop-color:#8b5cf6"/>
+        </linearGradient>
+      </defs>
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+    </svg>
+    <span class="logo-text">SecureZip</span>
+  </div>
+  <p class="tagline" id="tagline">client-side · zero-upload · AES-256</p>
+</header>
+
+<div class="card">
+  <!-- 탭 -->
+  <div class="tabs">
+    <button class="tab-btn active" id="tabCompress" onclick="switchTab('compress')">📦 압축</button>
+    <button class="tab-btn" id="tabExtract" onclick="switchTab('extract')">📂 압축 해제</button>
+  </div>
+
+  <!-- 압축 섹션 -->
+  <div id="compressSection">
+  <!-- 메인 뷰 -->
+  <div id="mainView">
+    <div class="drop-zone" id="dropZone">
+      <span class="drop-icon">📁</span>
+      <div class="drop-main" id="dropMain">파일을 드래그하거나 클릭해서 선택</div>
+      <div class="drop-sub">iPhone · iPad · PC 모두 지원</div>
+    </div>
+    <input type="file" id="fileInput" multiple>
+
+    <div class="file-list" id="fileList"></div>
+
+    <div class="field">
+      <label>파일 이름</label>
+      <input type="text" id="zipName" value="" placeholder="파일 이름 (기본값: archive)">
+    </div>
+
+    <div class="field">
+      <label>암호 (선택)</label>
+      <div class="pw-wrap">
+        <input type="password" id="password" placeholder="암호 입력 — 비워두면 암호화 안 함">
+        <button class="pw-toggle" id="pwToggle" type="button">👁</button>
+      </div>
+      <div class="strength-bars" id="strengthBars">
+        <div class="bar" id="b1"></div>
+        <div class="bar" id="b2"></div>
+        <div class="bar" id="b3"></div>
+        <div class="bar" id="b4"></div>
+      </div>
+      <div class="strength-label" id="strengthLabel"></div>
+    </div>
+
+    <div id="progressWrap" class="progress-wrap hidden">
+      <div class="progress-bg"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-text" id="progressText">압축 준비 중...</div>
+    </div>
+
+    <button class="btn btn-primary" id="compressBtn" disabled>
+      <span>📦</span> 압축하기
+    </button>
+  </div>
+
+  <!-- 압축 성공 뷰 -->
+  <div id="successView" class="hidden success-view">
+    <div class="success-icon">✓</div>
+    <div class="success-title">저장 완료</div>
+    <div class="success-meta" id="successMeta"></div>
+    <div id="encBadge" class="encrypted-badge hidden">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+      <span id="encBadgeText">AES-256 암호화됨</span>
+    </div>
+    <br>
+    <button class="btn btn-primary" id="resetBtn">확인</button>
+  </div>
+  </div><!-- /compressSection -->
+
+  <!-- 압축 해제 섹션 -->
+  <div id="extractSection" class="hidden">
+    <!-- 해제 메인 뷰 -->
+    <div id="extractMainView">
+      <div class="drop-zone" id="extractDropZone">
+        <span class="drop-icon">🗜️</span>
+        <div class="drop-main" id="extractDropMain">ZIP 파일을 드래그하거나 클릭해서 선택</div>
+        <div class="drop-sub">암호 ZIP도 지원 · 브라우저 밖으로 전송 안 됨</div>
+      </div>
+      <input type="file" id="extractFileInput" accept=".zip">
+
+      <div id="extractFileInfo" class="hidden" style="margin-bottom:10px;">
+        <div class="file-item">
+          <span class="fname" id="extractFileName"></span>
+          <span class="fsize" id="extractFileSize"></span>
+          <button class="del" id="extractFileClear" type="button">✕</button>
+        </div>
+      </div>
+
+      <!-- 파일 목록 미리보기 -->
+      <div id="extractPreview" class="hidden" style="margin-bottom:16px;">
+        <div style="font-size:11px;font-weight:500;color:var(--on-muted);text-transform:uppercase;letter-spacing:0.08em;font-family:'JetBrains Mono',monospace;margin-bottom:6px;" id="extractPreviewLabel"></div>
+        <div class="file-list" id="extractPreviewList" style="margin-bottom:0;"></div>
+      </div>
+
+      <div class="field">
+        <label>암호 (암호화된 경우)</label>
+        <div class="pw-wrap">
+          <input type="password" id="extractPassword" placeholder="암호가 없으면 비워두세요">
+          <button class="pw-toggle" id="extractPwToggle" type="button">👁</button>
+        </div>
+      </div>
+
+      <div id="extractProgressWrap" class="progress-wrap hidden">
+        <div class="progress-bg"><div class="progress-fill" id="extractProgressFill"></div></div>
+        <div class="progress-text" id="extractProgressText">압축 해제 중...</div>
+      </div>
+
+      <button class="btn btn-primary" id="extractBtn" disabled>
+        <span>📂</span> 압축 해제
+      </button>
+    </div>
+
+    <!-- 해제 성공 뷰 -->
+    <div id="extractSuccessView" class="hidden success-view">
+      <div class="success-icon">✓</div>
+      <div class="success-title">해제 완료</div>
+      <div class="success-meta" id="extractSuccessMeta"></div>
+      <br>
+      <button class="btn btn-primary" id="extractResetBtn">확인</button>
+    </div>
+  </div><!-- /extractSection -->
+</div>
+
+<footer id="footer">파일은 브라우저 밖으로 전송되지 않습니다.</footer>
+
+<script>
+/* ── i18n ── */
+const lang = navigator.language?.startsWith('ko') ? 'ko' : 'en';
+const i18n = {
+  ko: {
+    pageTitle:              'SecureZip — 브라우저 암호 압축',
+    tagline:                'client-side · zero-upload · AES-256',
+    tabCompress:            '📦 압축',
+    tabExtract:             '📂 압축 해제',
+    dropMain:               '파일을 드래그하거나 클릭해서 선택',
+    dropMainTouch:          '탭해서 파일 선택',
+    compressDropSub:        'iPhone · iPad · PC 모두 지원',
+    labelZipName:           '파일 이름',
+    labelPassword:          '암호 (선택)',
+    passwordPlaceholder:    '암호 입력 — 비워두면 암호화 안 함',
+    zipNamePlaceholder:     '파일 이름 (기본값: archive)',
+    strengthLabels:         ['', '취약', '보통', '강함', '매우 강함'],
+    compressBtnHtml:        '<span>📦</span> 압축하기',
+    progressPrepare:        '압축 준비 중...',
+    progressCompressing:    '압축 중 — ',
+    progressFinalizing:     '마무리 중...',
+    successTitle:           '저장 완료',
+    encBadgeText:           'AES-256 암호화됨',
+    doneBtn:                '확인',
+    footer:                 '파일은 브라우저 밖으로 전송되지 않습니다.',
+    extractDropMain:        'ZIP 파일을 드래그하거나 클릭해서 선택',
+    extractDropMainTouch:   '탭해서 ZIP 파일 선택',
+    extractDropSub:         '암호 ZIP도 지원 · 브라우저 밖으로 전송 안 됨',
+    extractPreviewReading:  '읽는 중...',
+    extractPreviewCount:    n => `파일 ${n}개`,
+    extractPreviewError:    '목록을 읽을 수 없습니다 (암호화된 파일명일 수 있음)',
+    labelExtractPassword:   '암호 (암호화된 경우)',
+    extractPwPlaceholder:   '암호가 없으면 비워두세요',
+    extractBtnHtml:         '<span>📂</span> 압축 해제',
+    extractProgressPrepare: '압축 해제 준비 중...',
+    extractProgressExt:     '해제 중 — ',
+    extractProgressFinal:   '마무리 중...',
+    extractSuccessTitle:    '해제 완료',
+    extract1File:           enc => `1개 파일 다운로드됨${enc ? ' · 🔒 암호 해제됨' : ''}`,
+    extractNFiles:          (n, enc) => `${n}개 파일 → ZIP으로 묶어서 다운로드됨${enc ? ' · 🔒 암호 해제됨' : ''}`,
+    wrongPassword:          '암호가 틀렸습니다. 다시 확인해 주세요.',
+    errorPrefix:            '오류: ',
+  },
+  en: {
+    pageTitle:              'SecureZip — Browser Encryption',
+    tagline:                'client-side · zero-upload · AES-256',
+    tabCompress:            '📦 Compress',
+    tabExtract:             '📂 Extract',
+    dropMain:               'Drop files here or click to select',
+    dropMainTouch:          'Tap to select files',
+    compressDropSub:        'iPhone · iPad · PC supported',
+    labelZipName:           'File Name',
+    labelPassword:          'Password (optional)',
+    passwordPlaceholder:    'Enter password — leave blank for no encryption',
+    zipNamePlaceholder:     'File name (default: archive)',
+    strengthLabels:         ['', 'Weak', 'Fair', 'Strong', 'Very strong'],
+    compressBtnHtml:        '<span>📦</span> Compress',
+    progressPrepare:        'Preparing...',
+    progressCompressing:    'Compressing — ',
+    progressFinalizing:     'Finalizing...',
+    successTitle:           'Saved',
+    encBadgeText:           'AES-256 Encrypted',
+    doneBtn:                'Done',
+    footer:                 'Files never leave your browser.',
+    extractDropMain:        'Drop a ZIP file here or click to select',
+    extractDropMainTouch:   'Tap to select a ZIP file',
+    extractDropSub:         'Encrypted ZIP supported · Files stay in browser',
+    extractPreviewReading:  'Reading...',
+    extractPreviewCount:    n => `${n} file${n !== 1 ? 's' : ''}`,
+    extractPreviewError:    'Cannot read file list (filenames may be encrypted)',
+    labelExtractPassword:   'Password (if encrypted)',
+    extractPwPlaceholder:   'Leave blank if no password',
+    extractBtnHtml:         '<span>📂</span> Extract',
+    extractProgressPrepare: 'Preparing extraction...',
+    extractProgressExt:     'Extracting — ',
+    extractProgressFinal:   'Finalizing...',
+    extractSuccessTitle:    'Done',
+    extract1File:           enc => `1 file downloaded${enc ? ' · 🔒 Decrypted' : ''}`,
+    extractNFiles:          (n, enc) => `${n} files → downloaded as ZIP${enc ? ' · 🔒 Decrypted' : ''}`,
+    wrongPassword:          'Wrong password. Please try again.',
+    errorPrefix:            'Error: ',
+  },
+};
+const t = i18n[lang];
+
+function applyI18n() {
+  document.title = t.pageTitle;
+  document.getElementById('tagline').textContent = t.tagline;
+  document.getElementById('tabCompress').innerHTML = t.tabCompress;
+  document.getElementById('tabExtract').innerHTML = t.tabExtract;
+  document.getElementById('dropMain').textContent = 'ontouchstart' in window ? t.dropMainTouch : t.dropMain;
+  document.querySelector('#compressSection .drop-sub').textContent = t.compressDropSub;
+  const cl = document.querySelectorAll('#compressSection .field label');
+  cl[0].textContent = t.labelZipName;
+  cl[1].textContent = t.labelPassword;
+  document.getElementById('password').placeholder = t.passwordPlaceholder;
+  document.getElementById('zipName').placeholder = t.zipNamePlaceholder;
+  document.getElementById('compressBtn').innerHTML = t.compressBtnHtml;
+  document.getElementById('resetBtn').textContent = t.doneBtn;
+  document.querySelector('#successView .success-title').textContent = t.successTitle;
+  document.getElementById('encBadgeText').textContent = t.encBadgeText;
+  document.getElementById('footer').textContent = t.footer;
+  document.getElementById('extractDropMain').textContent = 'ontouchstart' in window ? t.extractDropMainTouch : t.extractDropMain;
+  document.querySelector('#extractSection .drop-sub').textContent = t.extractDropSub;
+  document.querySelector('#extractSection .field label').textContent = t.labelExtractPassword;
+  document.getElementById('extractPassword').placeholder = t.extractPwPlaceholder;
+  document.getElementById('extractBtn').innerHTML = t.extractBtnHtml;
+  document.getElementById('extractResetBtn').textContent = t.doneBtn;
+  document.querySelector('#extractSuccessView .success-title').textContent = t.extractSuccessTitle;
+}
+applyI18n();
+
+const dropZone    = document.getElementById('dropZone');
+const fileInput   = document.getElementById('fileInput');
+const fileList    = document.getElementById('fileList');
+const password    = document.getElementById('password');
+const pwToggle    = document.getElementById('pwToggle');
+const compressBtn = document.getElementById('compressBtn');
+const progressWrap = document.getElementById('progressWrap');
+const progressFill = document.getElementById('progressFill');
+const progressText = document.getElementById('progressText');
+const mainView    = document.getElementById('mainView');
+const successView = document.getElementById('successView');
+const successMeta = document.getElementById('successMeta');
+const resetBtn    = document.getElementById('resetBtn');
+const encBadge    = document.getElementById('encBadge');
+
+let files = [];
+let zipBlob = null;
+
+
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  addFiles([...e.dataTransfer.files]);
+});
+fileInput.addEventListener('change', e => { addFiles([...e.target.files]); fileInput.value = ''; });
+
+function addFiles(newFiles) {
+  const wasEmpty = files.length === 0;
+  newFiles.forEach(f => { if (!files.find(x => x.name === f.name)) files.push(f); });
+  renderFiles();
+  updateZipNamePlaceholder();
+  if (wasEmpty && files.length > 0) document.getElementById('zipName').focus();
+}
+
+function updateZipNamePlaceholder() {
+  const input = document.getElementById('zipName');
+  if (files.length === 1) {
+    input.placeholder = files[0].name.replace(/\.[^.]+$/, '');
+  } else if (files.length > 1) {
+    input.placeholder = 'archive';
+  } else {
+    input.placeholder = t.zipNamePlaceholder;
+  }
+}
+
+let dragSrcIndex = null;
+let touchDragSrcIndex = null;
+let touchClone = null;
+
+function renderFiles() {
+  fileList.innerHTML = '';
+  files.forEach((f, i) => {
+    const item = document.createElement('div');
+    item.className = 'file-item';
+    item.draggable = true;
+    item.dataset.i = i;
+    item.innerHTML = `<span class="drag-handle">⠿</span><span class="fname">◾ ${f.name}</span><span class="fsize">${fmtSize(f.size)}</span><button class="del" data-i="${i}" type="button">✕</button>`;
+
+    // ── 데스크톱 드래그 ──
+    item.addEventListener('dragstart', () => {
+      dragSrcIndex = i;
+      setTimeout(() => item.classList.add('dragging'), 0);
+    });
+    item.addEventListener('dragend', () => {
+      item.classList.remove('dragging');
+      fileList.querySelectorAll('.file-item').forEach(el => el.classList.remove('drag-over-item'));
+    });
+    item.addEventListener('dragover', e => {
+      e.preventDefault();
+      fileList.querySelectorAll('.file-item').forEach(el => el.classList.remove('drag-over-item'));
+      item.classList.add('drag-over-item');
+    });
+    item.addEventListener('drop', e => {
+      e.preventDefault();
+      if (dragSrcIndex === null || dragSrcIndex === i) return;
+      const moved = files.splice(dragSrcIndex, 1)[0];
+      files.splice(i, 0, moved);
+      dragSrcIndex = null;
+      renderFiles();
+    });
+
+    // ── 모바일 터치 드래그 (핸들만) ──
+    const handle = item.querySelector('.drag-handle');
+    handle.addEventListener('touchstart', e => {
+      e.preventDefault();
+      const touch = e.touches[0];
+      const rect = item.getBoundingClientRect();
+      const offsetX = touch.clientX - rect.left;
+      const offsetY = touch.clientY - rect.top;
+
+      touchDragSrcIndex = i;
+      item.classList.add('dragging');
+
+      touchClone = item.cloneNode(true);
+      Object.assign(touchClone.style, {
+        position: 'fixed', zIndex: '9999', pointerEvents: 'none',
+        width: rect.width + 'px', left: rect.left + 'px', top: rect.top + 'px',
+        opacity: '0.9', margin: '0',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+        borderColor: 'var(--primary)',
+      });
+      document.body.appendChild(touchClone);
+
+      function onMove(e) {
+        e.preventDefault();
+        const t = e.touches[0];
+        touchClone.style.left = (t.clientX - offsetX) + 'px';
+        touchClone.style.top  = (t.clientY - offsetY) + 'px';
+
+        touchClone.style.visibility = 'hidden';
+        const el = document.elementFromPoint(t.clientX, t.clientY);
+        touchClone.style.visibility = '';
+
+        fileList.querySelectorAll('.file-item').forEach(el => el.classList.remove('drag-over-item'));
+        const target = el?.closest('.file-item[data-i]');
+        if (target && +target.dataset.i !== touchDragSrcIndex) target.classList.add('drag-over-item');
+      }
+
+      function onEnd(e) {
+        document.removeEventListener('touchmove', onMove);
+        document.removeEventListener('touchend', onEnd);
+        touchClone.remove();
+        item.classList.remove('dragging');
+        fileList.querySelectorAll('.file-item').forEach(el => el.classList.remove('drag-over-item'));
+
+        const t = e.changedTouches[0];
+        const el = document.elementFromPoint(t.clientX, t.clientY);
+        const target = el?.closest('.file-item[data-i]');
+        if (target) {
+          const targetIdx = +target.dataset.i;
+          if (targetIdx !== touchDragSrcIndex) {
+            const moved = files.splice(touchDragSrcIndex, 1)[0];
+            files.splice(targetIdx, 0, moved);
+            renderFiles();
+          }
+        }
+        touchDragSrcIndex = null;
+        touchClone = null;
+      }
+
+      document.addEventListener('touchmove', onMove, { passive: false });
+      document.addEventListener('touchend', onEnd);
+    }, { passive: false });
+
+    fileList.appendChild(item);
+  });
+  fileList.querySelectorAll('.del').forEach(btn => {
+    btn.addEventListener('click', () => { files.splice(+btn.dataset.i, 1); renderFiles(); updateZipNamePlaceholder(); });
+  });
+  compressBtn.disabled = files.length === 0;
+}
+
+function fmtSize(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+  return (b/1048576).toFixed(1) + ' MB';
+}
+
+pwToggle.addEventListener('click', () => {
+  password.type = password.type === 'password' ? 'text' : 'password';
+  pwToggle.textContent = password.type === 'password' ? '👁' : '🙈';
+});
+
+password.addEventListener('input', () => {
+  const v = password.value;
+  const colors = ['#ff6b6b','#ff9500','#34c759','#6366f1'];
+  const labels = t.strengthLabels;
+  let score = 0;
+  if (v.length >= 6) score++;
+  if (v.length >= 10) score++;
+  if (/[A-Z]/.test(v) && /[0-9]/.test(v)) score++;
+  if (/[^A-Za-z0-9]/.test(v)) score++;
+  ['b1','b2','b3','b4'].forEach((id, i) => {
+    document.getElementById(id).style.background = i < score ? colors[score-1] : '';
+  });
+  document.getElementById('strengthLabel').textContent = v.length > 0 ? labels[score] : '';
+});
+
+compressBtn.addEventListener('click', async () => {
+  if (!files.length) return;
+  compressBtn.disabled = true;
+  progressWrap.classList.remove('hidden');
+  progressFill.style.width = '0%';
+  progressText.textContent = t.progressPrepare;
+
+  try {
+    const pw = password.value;
+    const zipInput = document.getElementById('zipName');
+    const zipName = (zipInput.value || zipInput.placeholder || 'archive').replace(/\.zip$/i,'') + '.zip';
+    const { ZipWriter, BlobWriter, BlobReader } = zip;
+
+    const zipWriter = new ZipWriter(new BlobWriter('application/zip'), {
+      password: pw || undefined,
+      encryptionStrength: pw ? 3 : undefined
+    });
+
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      progressText.textContent = t.progressCompressing + f.name;
+      progressFill.style.width = Math.round((i / files.length) * 80) + '%';
+      await zipWriter.add(f.name, new BlobReader(f));
+    }
+
+    progressFill.style.width = '95%';
+    progressText.textContent = t.progressFinalizing;
+    zipBlob = await zipWriter.close();
+    progressFill.style.width = '100%';
+
+    const totalSize = files.reduce((s, f) => s + f.size, 0);
+    successMeta.textContent = `${files.length}개 파일 · ${fmtSize(totalSize)} → ${fmtSize(zipBlob.size)}`;
+
+    if (pw) encBadge.classList.remove('hidden');
+    else encBadge.classList.add('hidden');
+
+    // 자동 다운로드
+    const blobUrl = URL.createObjectURL(zipBlob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = zipName;
+    a.click();
+
+    setTimeout(() => {
+      mainView.classList.add('hidden');
+      successView.classList.remove('hidden');
+    }, 400);
+
+  } catch (e) {
+    alert('오류: ' + e.message);
+    compressBtn.disabled = false;
+    progressWrap.classList.add('hidden');
+  }
+});
+
+resetBtn.addEventListener('click', () => {
+  files = []; zipBlob = null;
+  fileList.innerHTML = '';
+  password.value = '';
+  document.getElementById('zipName').value = '';
+  progressWrap.classList.add('hidden');
+  progressFill.style.width = '0%';
+  compressBtn.disabled = true;
+  successView.classList.add('hidden');
+  mainView.classList.remove('hidden');
+  ['b1','b2','b3','b4'].forEach(id => { document.getElementById(id).style.background = ''; });
+  document.getElementById('strengthLabel').textContent = '';
+});
+
+/* ── 탭 전환 ── */
+function switchTab(tab) {
+  const isCompress = tab === 'compress';
+  document.getElementById('compressSection').classList.toggle('hidden', !isCompress);
+  document.getElementById('extractSection').classList.toggle('hidden', isCompress);
+  document.getElementById('tabCompress').classList.toggle('active', isCompress);
+  document.getElementById('tabExtract').classList.toggle('active', !isCompress);
+}
+
+/* ── 압축 해제 ── */
+const extractDropZone   = document.getElementById('extractDropZone');
+const extractFileInput  = document.getElementById('extractFileInput');
+const extractFileInfo   = document.getElementById('extractFileInfo');
+const extractFileName   = document.getElementById('extractFileName');
+const extractFileSize   = document.getElementById('extractFileSize');
+const extractFileClear  = document.getElementById('extractFileClear');
+const extractPassword   = document.getElementById('extractPassword');
+const extractPwToggle   = document.getElementById('extractPwToggle');
+const extractBtn        = document.getElementById('extractBtn');
+const extractProgressWrap = document.getElementById('extractProgressWrap');
+const extractProgressFill = document.getElementById('extractProgressFill');
+const extractProgressText = document.getElementById('extractProgressText');
+const extractMainView   = document.getElementById('extractMainView');
+const extractSuccessView = document.getElementById('extractSuccessView');
+const extractSuccessMeta = document.getElementById('extractSuccessMeta');
+const extractResetBtn   = document.getElementById('extractResetBtn');
+
+
+let extractFile = null;
+
+async function setExtractFile(f) {
+  if (!f || !f.name.toLowerCase().endsWith('.zip')) {
+    alert('.zip 파일만 선택할 수 있습니다.');
+    return;
+  }
+  extractFile = f;
+  extractFileName.textContent = '◾ ' + f.name;
+  extractFileSize.textContent = fmtSize(f.size);
+  extractFileInfo.classList.remove('hidden');
+  extractDropZone.classList.add('hidden');
+  extractBtn.disabled = false;
+
+  // ZIP 내부 파일 목록 미리보기
+  const previewEl = document.getElementById('extractPreview');
+  const listEl    = document.getElementById('extractPreviewList');
+  const labelEl   = document.getElementById('extractPreviewLabel');
+  listEl.innerHTML = '';
+  previewEl.classList.remove('hidden');
+  labelEl.textContent = t.extractPreviewReading;
+  try {
+    const { ZipReader, BlobReader } = zip;
+    const reader = new ZipReader(new BlobReader(f));
+    const entries = await reader.getEntries();
+    await reader.close();
+    const fileEntries = entries.filter(e => !e.directory);
+    labelEl.textContent = t.extractPreviewCount(fileEntries.length);
+    fileEntries.forEach(entry => {
+      const item = document.createElement('div');
+      item.className = 'file-item';
+      item.innerHTML = `<span class="fname">◾ ${entry.filename}</span><span class="fsize">${fmtSize(entry.uncompressedSize)}</span>`;
+      listEl.appendChild(item);
+    });
+  } catch {
+    labelEl.textContent = t.extractPreviewError;
+  }
+}
+
+extractDropZone.addEventListener('click', () => extractFileInput.click());
+extractDropZone.addEventListener('dragover', e => { e.preventDefault(); extractDropZone.classList.add('drag-over'); });
+extractDropZone.addEventListener('dragleave', () => extractDropZone.classList.remove('drag-over'));
+extractDropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  extractDropZone.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) setExtractFile(e.dataTransfer.files[0]);
+});
+extractFileInput.addEventListener('change', e => {
+  if (e.target.files[0]) setExtractFile(e.target.files[0]);
+  extractFileInput.value = '';
+});
+
+extractFileClear.addEventListener('click', () => {
+  extractFile = null;
+  extractFileInfo.classList.add('hidden');
+  extractDropZone.classList.remove('hidden');
+  extractBtn.disabled = true;
+  extractPassword.value = '';
+  document.getElementById('extractPreview').classList.add('hidden');
+  document.getElementById('extractPreviewList').innerHTML = '';
+});
+
+extractPwToggle.addEventListener('click', () => {
+  extractPassword.type = extractPassword.type === 'password' ? 'text' : 'password';
+  extractPwToggle.textContent = extractPassword.type === 'password' ? '👁' : '🙈';
+});
+
+extractBtn.addEventListener('click', async () => {
+  if (!extractFile) return;
+  extractBtn.disabled = true;
+  extractProgressWrap.classList.remove('hidden');
+  extractProgressFill.style.width = '0%';
+  extractProgressText.textContent = t.extractProgressPrepare;
+
+  try {
+    const pw = extractPassword.value;
+    const { ZipReader, BlobReader, BlobWriter } = zip;
+    const zipReader = new ZipReader(new BlobReader(extractFile), { password: pw || undefined });
+    const entries = await zipReader.getEntries();
+    const fileEntries = entries.filter(e => !e.directory);
+
+    if (fileEntries.length === 1) {
+      // 파일 1개 → 직접 다운로드
+      extractProgressText.textContent = t.extractProgressExt + fileEntries[0].filename;
+      extractProgressFill.style.width = '50%';
+      const blob = await fileEntries[0].getData(new BlobWriter(), { password: pw || undefined });
+      extractProgressFill.style.width = '100%';
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = fileEntries[0].filename.split('/').pop();
+      a.click();
+    } else {
+      // 파일 여러 개 → 새 ZIP으로 묶어서 다운로드
+      const { ZipWriter, BlobWriter: BW2 } = zip;
+      const outZipWriter = new ZipWriter(new BW2('application/zip'));
+      let i = 0;
+      for (const entry of fileEntries) {
+        extractProgressText.textContent = t.extractProgressExt + entry.filename;
+        extractProgressFill.style.width = Math.round((i / fileEntries.length) * 85) + '%';
+        const blob = await entry.getData(new BlobWriter(), { password: pw || undefined });
+        await outZipWriter.add(entry.filename, new zip.BlobReader(blob));
+        i++;
+      }
+      extractProgressFill.style.width = '95%';
+      extractProgressText.textContent = t.extractProgressFinal;
+      const outBlob = await outZipWriter.close();
+      extractProgressFill.style.width = '100%';
+      const outName = extractFile.name.replace(/\.zip$/i, '') + '_extracted.zip';
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(outBlob);
+      a.download = outName;
+      a.click();
+    }
+
+    await zipReader.close();
+
+    extractSuccessMeta.textContent = fileEntries.length === 1
+      ? t.extract1File(!!pw)
+      : t.extractNFiles(fileEntries.length, !!pw);
+
+    setTimeout(() => {
+      extractMainView.classList.add('hidden');
+      extractSuccessView.classList.remove('hidden');
+    }, 400);
+
+  } catch (e) {
+    const msg = e.message?.toLowerCase().includes('password') || e.message?.toLowerCase().includes('wrong')
+      ? t.wrongPassword
+      : t.errorPrefix + e.message;
+    alert(msg);
+    extractBtn.disabled = false;
+    extractProgressWrap.classList.add('hidden');
+  }
+});
+
+extractResetBtn.addEventListener('click', () => {
+  extractFile = null;
+  extractFileInfo.classList.add('hidden');
+  extractDropZone.classList.remove('hidden');
+  extractPassword.value = '';
+  extractProgressWrap.classList.add('hidden');
+  extractProgressFill.style.width = '0%';
+  extractBtn.disabled = true;
+  extractSuccessView.classList.add('hidden');
+  extractMainView.classList.remove('hidden');
+  document.getElementById('extractPreview').classList.add('hidden');
+  document.getElementById('extractPreviewList').innerHTML = '';
+});
+</script>
+</body>
+</html>

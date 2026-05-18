@@ -1,0 +1,19 @@
+service: securezip
+image: oursonghappy/securezip
+
+servers:
+  web:
+    - 5.223.72.224
+
+proxy:
+  ssl: true
+  host: securezip.sagevee.com
+
+registry:
+  server: ghcr.io
+  username: oursonghappy
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+builder:
+  arch: amd64
